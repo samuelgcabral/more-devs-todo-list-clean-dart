@@ -18,7 +18,15 @@ Responde `200` com o token e o usuário:
 { "token": "3f1c2a9e-...", "user": { "id": 1, "name": "Aluno", "email": "aluno@todo.dev" } }
 ```
 
-`400` quando falta e-mail ou senha, `401` quando estão errados. Contas de teste: `aluno@todo.dev` / `123456` e `professor@todo.dev` / `senha123`.
+`400` quando falta e-mail ou senha, `401` quando estão errados. Contas de teste:
+
+| Nome        | E-mail               | Senha      |
+| ----------- | -------------------- | ---------- |
+| Aluno       | `aluno@todo.dev`     | `123456`   |
+| Professor   | `professor@todo.dev` | `senha123` |
+| Maria Souza | `maria@todo.dev`     | `maria123` |
+| João Lima   | `joao@todo.dev`      | `joao123`  |
+| Ana Costa   | `ana@todo.dev`       | `ana123`   |
 
 ### `GET /todos`
 

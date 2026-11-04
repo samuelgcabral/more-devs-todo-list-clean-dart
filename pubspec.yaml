@@ -10,6 +10,13 @@ dependencies:
   flutter:
     sdk: flutter
   dio: ^5.4.0
+  flutter_secure_storage: ^11.2.0
+
+# O objective_c (só iOS/macOS) traz um hook de build que faz o flutter test
+# falhar no Windows quando o caminho do SDK tem espaço. Esta versão não depende
+# dele. Pode sair quando o Flutter corrigir o hooks_runner.
+dependency_overrides:
+  path_provider_foundation: 2.5.1
 
 dev_dependencies:
   flutter_test:

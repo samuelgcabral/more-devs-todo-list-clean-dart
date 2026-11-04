@@ -4,6 +4,7 @@ import 'package:todo_gabarito/modules/auth/view/login_page.dart';
 import 'package:todo_gabarito/modules/auth/viewmodel/login_view_model.dart';
 
 import '../../../helpers/fake_auth_service.dart';
+import '../../../helpers/fake_session_storage.dart';
 
 void main() {
   Finder field(String label) => find.widgetWithText(TextField, label);
@@ -11,7 +12,7 @@ void main() {
 
   testWidgets('o botão só habilita com os dois campos preenchidos',
       (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService());
+    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     expect(tester.widget<FilledButton>(button()).onPressed, isNull);
@@ -24,7 +25,7 @@ void main() {
   });
 
   testWidgets('senha errada mostra o erro na tela', (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService());
+    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     await tester.enterText(field('E-mail'), 'aluno@todo.dev');
@@ -38,7 +39,7 @@ void main() {
   });
 
   testWidgets('login certo pelo teclado cria a sessão', (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService());
+    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     await tester.enterText(field('E-mail'), 'aluno@todo.dev');
@@ -50,7 +51,7 @@ void main() {
   });
 
   testWidgets('o olho mostra e esconde a senha', (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService());
+    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     bool obscured() =>
@@ -60,5 +61,22 @@ void main() {
     await tester.tap(find.byTooltip('Mostrar senha'));
     await tester.pump();
     expect(obscured(), isFalse);
+  });
+
+  testWidgets('marcar "Lembrar de mim" guarda a sessão ao entrar',
+      (tester) async {
+    final storage = FakeSessionStorage();
+    final viewModel = LoginViewModel(FakeAuthService(), storage);
+    await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
+
+    await tester.enterText(field('E-mail'), 'aluno@todo.dev');
+    await tester.enterText(field('Senha'), '123456');
+    await tester.tap(find.text('Lembrar de mim'));
+    await tester.pump();
+    await tester.tap(button());
+    await tester.pump();
+
+    expect(viewModel.loggedIn, isTrue);
+    expect(storage.saved, isNotNull);
   });
 }

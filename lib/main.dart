@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:todo_gabarito/modules/todos/domain/usecases/update_todos_use_case.dart';
 
 import 'modules/auth/model/auth_service.dart';
+import 'modules/auth/model/session_storage.dart';
 import 'modules/auth/view/login_page.dart';
 import 'modules/auth/viewmodel/login_view_model.dart';
 import 'modules/habits/model/habits_service.dart';
@@ -19,7 +21,10 @@ import 'modules/todos/presenter/todos_controller.dart';
 import 'modules/todos/presenter/todos_page.dart';
 
 /// Único lugar que sabe quais implementações usar.
-void main() {
+Future<void> main() async {
+  // O armazenamento seguro usa canais nativos, que precisam disso antes do runApp.
+  WidgetsFlutterBinding.ensureInitialized();
+
   final dio = Dio(
     BaseOptions(baseUrl: 'https://todo-api-production-62d2.up.railway.app'),
   );
@@ -37,9 +42,16 @@ void main() {
 
   // MVVM: a View observa o ViewModel, que fala com o Model.
   final habitsViewModel = HabitsViewModel(HabitsService(dio))..load();
-  final loginViewModel = LoginViewModel(AuthService(dio));
+  final loginViewModel = LoginViewModel(
+    AuthService(dio),
+    SessionStorage(const FlutterSecureStorage()),
+  );
+
+  // Antes do runApp, para quem foi lembrado não ver o login piscar na tela.
+  await loginViewModel.restoreSession();
 
   final home = HomeShell(
+    onLogout: loginViewModel.logout,
     pages: [
       TodosPage(controller: todosController),
       HabitsPage(viewModel: habitsViewModel),
@@ -64,9 +76,10 @@ void main() {
 
 /// Navegação entre os módulos. Fica aqui para um módulo não importar o outro.
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, required this.pages});
+  const HomeShell({super.key, required this.pages, required this.onLogout});
 
   final List<Widget> pages;
+  final VoidCallback onLogout;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -81,7 +94,14 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(index: index, children: widget.pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        onDestinationSelected: (value) => setState(() => index = value),
+        onDestinationSelected: (value) {
+          // O último item não é uma aba: é a ação de sair.
+          if (value == widget.pages.length) {
+            widget.onLogout();
+          } else {
+            setState(() => index = value);
+          }
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.checklist_rounded),
@@ -94,6 +114,10 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
             icon: Icon(Icons.sticky_note_2_rounded),
             label: 'Notas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.logout_rounded),
+            label: 'Sair',
           ),
         ],
       ),

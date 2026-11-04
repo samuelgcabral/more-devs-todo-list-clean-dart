@@ -406,6 +406,9 @@ app.get('/', (_request, response) => {
 const users = [
     { id: 1, name: 'Aluno', email: 'aluno@todo.dev', password: '123456' },
     { id: 2, name: 'Professor', email: 'professor@todo.dev', password: 'senha123' },
+    { id: 3, name: 'Maria Souza', email: 'maria@todo.dev', password: 'maria123' },
+    { id: 4, name: 'João Lima', email: 'joao@todo.dev', password: 'joao123' },
+    { id: 5, name: 'Ana Costa', email: 'ana@todo.dev', password: 'ana123' },
 ];
 
 app.post('/auth/login', (request, response) => {
