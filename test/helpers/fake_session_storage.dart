@@ -1,10 +1,10 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo_gabarito/modules/auth/model/session.dart';
 import 'package:todo_gabarito/modules/auth/model/session_storage.dart';
 
 /// Armazenamento falso: guarda a sessão em memória, nada de canal nativo.
 class FakeSessionStorage extends SessionStorage {
-  FakeSessionStorage({this.saved}) : super(const FlutterSecureStorage());
+  FakeSessionStorage({this.saved}) : super(_NoPrefs());
 
   Session? saved;
   bool fail = false;
@@ -26,4 +26,10 @@ class FakeSessionStorage extends SessionStorage {
     if (fail) throw Exception('Falha simulada');
     saved = null;
   }
+}
+
+/// Nunca é usado: o fake sobrescreve tudo que tocaria nas preferências.
+class _NoPrefs implements SharedPreferences {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }

@@ -4,6 +4,7 @@ import 'package:todo_gabarito/modules/auth/view/login_page.dart';
 import 'package:todo_gabarito/modules/auth/viewmodel/login_view_model.dart';
 
 import '../../../helpers/fake_auth_service.dart';
+import '../../../helpers/fake_connection_status.dart';
 import '../../../helpers/fake_session_storage.dart';
 
 void main() {
@@ -12,7 +13,8 @@ void main() {
 
   testWidgets('o botão só habilita com os dois campos preenchidos',
       (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     expect(tester.widget<FilledButton>(button()).onPressed, isNull);
@@ -25,7 +27,8 @@ void main() {
   });
 
   testWidgets('senha errada mostra o erro na tela', (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     await tester.enterText(field('E-mail'), 'aluno@todo.dev');
@@ -39,7 +42,8 @@ void main() {
   });
 
   testWidgets('login certo pelo teclado cria a sessão', (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     await tester.enterText(field('E-mail'), 'aluno@todo.dev');
@@ -51,11 +55,11 @@ void main() {
   });
 
   testWidgets('o olho mostra e esconde a senha', (tester) async {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
-    bool obscured() =>
-        tester.widget<TextField>(field('Senha')).obscureText;
+    bool obscured() => tester.widget<TextField>(field('Senha')).obscureText;
 
     expect(obscured(), isTrue);
     await tester.tap(find.byTooltip('Mostrar senha'));
@@ -66,7 +70,8 @@ void main() {
   testWidgets('marcar "Lembrar de mim" guarda a sessão ao entrar',
       (tester) async {
     final storage = FakeSessionStorage();
-    final viewModel = LoginViewModel(FakeAuthService(), storage);
+    final viewModel =
+        LoginViewModel(FakeAuthService(), storage, FakeConnectionStatus());
     await tester.pumpWidget(MaterialApp(home: LoginPage(viewModel: viewModel)));
 
     await tester.enterText(field('E-mail'), 'aluno@todo.dev');

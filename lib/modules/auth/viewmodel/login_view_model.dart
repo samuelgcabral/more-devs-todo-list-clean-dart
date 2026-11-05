@@ -3,14 +3,16 @@ import 'package:flutter/foundation.dart';
 import '../model/auth_service.dart';
 import '../model/session.dart';
 import '../model/session_storage.dart';
+import '../../shared/connectivity/connection_status.dart';
 
 final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 class LoginViewModel extends ChangeNotifier {
-  LoginViewModel(this.service, this.sessionStorage);
+  LoginViewModel(this.service, this.sessionStorage, this.connection);
 
   final AuthService service;
   final SessionStorage sessionStorage;
+  final ConnectionStatus connection;
 
   String _email = '';
   String _password = '';
@@ -50,8 +52,9 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Abre o app já logado se houver sessão guardada. Se não der para ler o que
-  /// foi guardado, o usuário só precisa entrar de novo.
+  /// Abre o app já logado se houver sessão guardada (funciona até sem
+  /// internet, porque o token está no aparelho). Se não der para ler o que foi
+  /// guardado, o usuário só precisa entrar de novo.
   Future<void> restoreSession() async {
     try {
       session = await sessionStorage.read();
@@ -67,6 +70,13 @@ class LoginViewModel extends ChangeNotifier {
     final email = _email.trim();
     if (!_emailPattern.hasMatch(email)) {
       emailError = 'Digite um e-mail válido';
+      notifyListeners();
+      return;
+    }
+
+    // Sem rede a API nem responderia: avisa logo, sem esperar o timeout.
+    if (!connection.online) {
+      error = 'Sem conexão com a internet';
       notifyListeners();
       return;
     }

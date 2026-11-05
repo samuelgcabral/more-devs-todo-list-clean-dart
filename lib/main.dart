@@ -1,6 +1,7 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo_gabarito/modules/todos/domain/usecases/update_todos_use_case.dart';
 
 import 'modules/auth/model/auth_service.dart';
@@ -13,6 +14,8 @@ import 'modules/habits/viewmodel/habits_view_model.dart';
 import 'modules/notes/controller/notes_controller.dart';
 import 'modules/notes/model/notes_service.dart';
 import 'modules/notes/view/notes_page.dart';
+import 'modules/shared/connectivity/connection_status.dart';
+import 'modules/shared/connectivity/offline_banner.dart';
 import 'modules/todos/domain/usecases/get_todos.dart';
 import 'modules/todos/external/datasources/todo_api_datasource.dart';
 import 'modules/todos/infra/datasources/todo_datasource.dart';
@@ -22,8 +25,13 @@ import 'modules/todos/presenter/todos_page.dart';
 
 /// Único lugar que sabe quais implementações usar.
 Future<void> main() async {
-  // O armazenamento seguro usa canais nativos, que precisam disso antes do runApp.
+  // shared_preferences e connectivity_plus usam canais nativos, que precisam
+  // disso antes do runApp.
   WidgetsFlutterBinding.ensureInitialized();
+
+  final prefs = await SharedPreferences.getInstance();
+  final connection = ConnectionStatus(Connectivity());
+  await connection.start();
 
   final dio = Dio(
     BaseOptions(baseUrl: 'https://todo-api-production-62d2.up.railway.app'),
@@ -44,8 +52,19 @@ Future<void> main() async {
   final habitsViewModel = HabitsViewModel(HabitsService(dio))..load();
   final loginViewModel = LoginViewModel(
     AuthService(dio),
-    SessionStorage(const FlutterSecureStorage()),
+    SessionStorage(prefs),
+    connection,
   );
+
+  // Toda requisição leva o token da sessão atual, seja a recém-criada no login
+  // ou a restaurada do aparelho.
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) {
+      final token = loginViewModel.session?.token;
+      if (token != null) options.headers['Authorization'] = 'Bearer $token';
+      handler.next(options);
+    },
+  ));
 
   // Antes do runApp, para quem foi lembrado não ver o login piscar na tela.
   await loginViewModel.restoreSession();
@@ -64,12 +83,13 @@ Future<void> main() async {
     theme: ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF315CFF)),
     ),
+    builder: (context, child) =>
+        OfflineBanner(status: connection, child: child!),
     // Enquanto não houver sessão, mostra o login; depois, o app.
     home: ListenableBuilder(
       listenable: loginViewModel,
-      builder: (context, _) => loginViewModel.loggedIn
-          ? home
-          : LoginPage(viewModel: loginViewModel),
+      builder: (context, _) =>
+          loginViewModel.loggedIn ? home : LoginPage(viewModel: loginViewModel),
     ),
   ));
 }

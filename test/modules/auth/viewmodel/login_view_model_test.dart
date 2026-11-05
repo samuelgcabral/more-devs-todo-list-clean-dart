@@ -5,11 +5,13 @@ import 'package:todo_gabarito/modules/auth/model/session.dart';
 import 'package:todo_gabarito/modules/auth/viewmodel/login_view_model.dart';
 
 import '../../../helpers/fake_auth_service.dart';
+import '../../../helpers/fake_connection_status.dart';
 import '../../../helpers/fake_session_storage.dart';
 
 void main() {
   test('só deixa enviar com e-mail e senha preenchidos', () {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
     expect(viewModel.canSubmit, isFalse);
 
     viewModel.setEmail('aluno@todo.dev');
@@ -23,7 +25,8 @@ void main() {
   });
 
   test('login certo cria a sessão', () async {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage())
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus())
       ..setEmail('  aluno@todo.dev ')
       ..setPassword('123456');
 
@@ -37,9 +40,10 @@ void main() {
 
   test('e-mail inválido mostra erro no campo e não chama a API', () async {
     final service = FakeAuthService();
-    final viewModel = LoginViewModel(service, FakeSessionStorage())
-      ..setEmail('aluno')
-      ..setPassword('123456');
+    final viewModel =
+        LoginViewModel(service, FakeSessionStorage(), FakeConnectionStatus())
+          ..setEmail('aluno')
+          ..setPassword('123456');
 
     await viewModel.login();
 
@@ -52,7 +56,8 @@ void main() {
   });
 
   test('senha errada vira mensagem de credenciais incorretas', () async {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage())
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus())
       ..setEmail('aluno@todo.dev')
       ..setPassword('errada');
 
@@ -66,10 +71,10 @@ void main() {
   });
 
   test('falha de rede vira mensagem genérica', () async {
-    final viewModel =
-        LoginViewModel(FakeAuthService()..fail = true, FakeSessionStorage())
-          ..setEmail('aluno@todo.dev')
-          ..setPassword('123456');
+    final viewModel = LoginViewModel(FakeAuthService()..fail = true,
+        FakeSessionStorage(), FakeConnectionStatus())
+      ..setEmail('aluno@todo.dev')
+      ..setPassword('123456');
 
     await viewModel.login();
 
@@ -79,9 +84,10 @@ void main() {
 
   test('enquanto carrega, não aceita um segundo envio', () async {
     final service = FakeAuthService()..gate = Completer();
-    final viewModel = LoginViewModel(service, FakeSessionStorage())
-      ..setEmail('aluno@todo.dev')
-      ..setPassword('123456');
+    final viewModel =
+        LoginViewModel(service, FakeSessionStorage(), FakeConnectionStatus())
+          ..setEmail('aluno@todo.dev')
+          ..setPassword('123456');
 
     final first = viewModel.login();
     expect(viewModel.loading, isTrue);
@@ -97,7 +103,8 @@ void main() {
   });
 
   test('alternar a visibilidade da senha', () {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
     expect(viewModel.obscurePassword, isTrue);
 
     viewModel.togglePasswordVisibility();
@@ -106,7 +113,8 @@ void main() {
   });
 
   test('"Lembrar de mim" começa desmarcado e alterna', () {
-    final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+    final viewModel = LoginViewModel(
+        FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
     expect(viewModel.rememberMe, isFalse);
 
     viewModel.toggleRememberMe();
@@ -121,7 +129,7 @@ void main() {
     );
 
     LoginViewModel filledIn(FakeSessionStorage storage, {String? password}) =>
-        LoginViewModel(FakeAuthService(), storage)
+        LoginViewModel(FakeAuthService(), storage, FakeConnectionStatus())
           ..setEmail('aluno@todo.dev')
           ..setPassword(password ?? '123456');
 
@@ -169,6 +177,7 @@ void main() {
       final viewModel = LoginViewModel(
         FakeAuthService(),
         FakeSessionStorage(saved: remembered),
+        FakeConnectionStatus(),
       );
       var notified = false;
       viewModel.addListener(() => notified = true);
@@ -181,7 +190,8 @@ void main() {
     });
 
     test('ao abrir sem sessão guardada, fica no login', () async {
-      final viewModel = LoginViewModel(FakeAuthService(), FakeSessionStorage());
+      final viewModel = LoginViewModel(
+          FakeAuthService(), FakeSessionStorage(), FakeConnectionStatus());
 
       await viewModel.restoreSession();
 
@@ -192,6 +202,7 @@ void main() {
       final viewModel = LoginViewModel(
         FakeAuthService(),
         FakeSessionStorage(saved: remembered)..fail = true,
+        FakeConnectionStatus(),
       );
 
       await viewModel.restoreSession();
@@ -218,13 +229,66 @@ void main() {
 
     test('falha ao apagar não impede a saída', () async {
       final storage = FakeSessionStorage(saved: remembered);
-      final viewModel = LoginViewModel(FakeAuthService(), storage);
+      final viewModel =
+          LoginViewModel(FakeAuthService(), storage, FakeConnectionStatus());
       await viewModel.restoreSession();
       storage.fail = true;
 
       await viewModel.logout();
 
       expect(viewModel.loggedIn, isFalse);
+    });
+  });
+
+  group('Sem internet', () {
+    test('não chama a API e avisa que está sem conexão', () async {
+      final service = FakeAuthService();
+      final viewModel = LoginViewModel(
+        service,
+        FakeSessionStorage(),
+        FakeConnectionStatus(online: false),
+      )
+        ..setEmail('aluno@todo.dev')
+        ..setPassword('123456');
+
+      await viewModel.login();
+
+      expect(service.calls, isEmpty);
+      expect(viewModel.error, 'Sem conexão com a internet');
+      expect(viewModel.loggedIn, isFalse);
+      expect(viewModel.loading, isFalse);
+    });
+
+    test('quando a rede volta, o login funciona', () async {
+      final connection = FakeConnectionStatus(online: false);
+      final viewModel =
+          LoginViewModel(FakeAuthService(), FakeSessionStorage(), connection)
+            ..setEmail('aluno@todo.dev')
+            ..setPassword('123456');
+      await viewModel.login();
+
+      connection.set(true);
+      await viewModel.login();
+
+      expect(viewModel.loggedIn, isTrue);
+      expect(viewModel.error, isNull);
+    });
+
+    test('a sessão guardada entra mesmo offline', () async {
+      final viewModel = LoginViewModel(
+        FakeAuthService(),
+        FakeSessionStorage(
+          saved: const Session(
+            token: 'token-guardado',
+            user: User(id: 1, name: 'Aluno', email: 'aluno@todo.dev'),
+          ),
+        ),
+        FakeConnectionStatus(online: false),
+      );
+
+      await viewModel.restoreSession();
+
+      expect(viewModel.loggedIn, isTrue);
     });
   });
 }

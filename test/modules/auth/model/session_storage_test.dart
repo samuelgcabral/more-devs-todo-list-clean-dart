@@ -1,4 +1,4 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_gabarito/modules/auth/model/session.dart';
 import 'package:todo_gabarito/modules/auth/model/session_storage.dart';
@@ -9,17 +9,17 @@ void main() {
     user: User(id: 1, name: 'Aluno', email: 'aluno@todo.dev'),
   );
 
-  SessionStorage storageWith(Map<String, String> values) {
-    FlutterSecureStorage.setMockInitialValues(values);
-    return SessionStorage(const FlutterSecureStorage());
+  Future<SessionStorage> storageWith(Map<String, Object> values) async {
+    SharedPreferences.setMockInitialValues(values);
+    return SessionStorage(await SharedPreferences.getInstance());
   }
 
   test('sem nada guardado, não há sessão', () async {
-    expect(await storageWith({}).read(), isNull);
+    expect(await (await storageWith({})).read(), isNull);
   });
 
   test('o que foi guardado volta igual', () async {
-    final storage = storageWith({});
+    final storage = await storageWith({});
 
     await storage.save(session);
     final restored = await storage.read();
@@ -31,7 +31,7 @@ void main() {
   });
 
   test('clear apaga a sessão guardada', () async {
-    final storage = storageWith({});
+    final storage = await storageWith({});
     await storage.save(session);
 
     await storage.clear();
@@ -40,7 +40,7 @@ void main() {
   });
 
   test('conteúdo inválido lança erro em vez de virar sessão', () async {
-    final storage = storageWith({'session': 'não é json'});
+    final storage = await storageWith({'session': 'não é json'});
 
     expect(storage.read(), throwsA(isA<FormatException>()));
   });

@@ -1,26 +1,28 @@
 import 'dart:convert';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'session.dart';
 
-/// Guarda a sessão no armazenamento seguro do aparelho, para o "Lembrar de mim"
-/// sobreviver ao fechamento do app. Só o token e o usuário: a senha nunca é salva.
+/// Guarda a sessão no shared_preferences, para o login ser automático quando o
+/// app abrir de novo. Só o token e o usuário: a senha nunca é salva.
 class SessionStorage {
-  SessionStorage(this.storage);
+  SessionStorage(this.prefs);
 
   static const _key = 'session';
 
-  final FlutterSecureStorage storage;
+  final SharedPreferences prefs;
 
-  Future<void> save(Session session) =>
-      storage.write(key: _key, value: jsonEncode(session.toMap()));
+  Future<void> save(Session session) async {
+    final saved = await prefs.setString(_key, jsonEncode(session.toMap()));
+    if (!saved) throw Exception('O aparelho não guardou a sessão');
+  }
 
   Future<Session?> read() async {
-    final saved = await storage.read(key: _key);
+    final saved = prefs.getString(_key);
     if (saved == null) return null;
     return Session.fromMap(jsonDecode(saved) as Map<String, dynamic>);
   }
 
-  Future<void> clear() => storage.delete(key: _key);
+  Future<void> clear() => prefs.remove(_key);
 }
